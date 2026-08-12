@@ -1,0 +1,90 @@
+name: Hotel Management SQL CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+
+  test-sql:
+    name: Test SQL Database
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: hotel_management
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install MySQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+      - name: Run Schema
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root -proot hotel_management < 01_schema.sql
+
+      - name: Load Data
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root -proot hotel_management < 02_data.sql
+
+      - name: Run Queries
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root -proot hotel_management < 03_queries.sql
+
+      - name: Create Views
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root -proot hotel_management < 04_views.sql
+
+      - name: Create Procedures
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root -proot hotel_management < 05_procedures.sql
+
+      - name: Create Triggers
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root -proot hotel_management < 06_triggers.sql
+
+      - name: Verify Database
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root -proot hotel_management -e "SHOW TABLES;"
+          mysql -h 127.0.0.1 -P 3306 -u root -proot hotel_management -e "SHOW FULL TABLES WHERE Table_type = 'VIEW';"
+          mysql -h 127.0.0.1 -P 3306 -u root -proot hotel_management -e "SHOW TRIGGERS;"
+          mysql -h 127.0.0.1 -P 3306 -u root -proot hotel_management -e "SHOW PROCEDURE STATUS WHERE Db = 'hotel_management';"
+
+  delivery:
+    name: Continuous Delivery
+    needs: test-sql
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Create SQL package
+        run: |
+          mkdir hotel-management-sql
+          cp 01_schema.sql 02_data.sql 03_queries.sql 04_views.sql 05_procedures.sql 06_triggers.sql hotel-management-sql/
+
+      - name: Upload SQL package
+        uses: actions/upload-artifact@v6
+        with:
+          name: hotel-management-sql
+          path: hotel-management-sql/
