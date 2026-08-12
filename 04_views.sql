@@ -1,36 +1,37 @@
 USE hotel_management;
 
--- 1. Customer booking details
-CREATE OR REPLACE VIEW customer_booking_details AS
+CREATE VIEW customer_bookings AS
 SELECT
-    c.customer_id,
     c.customer_name,
     c.phone,
-    c.email,
-    b.booking_id,
-    b.room_id,
     b.check_in,
     b.check_out,
     b.total_amount,
-    b.status AS booking_status
+    b.status
 FROM customers c
 JOIN bookings b
 ON c.customer_id = b.customer_id;
 
-
--- 2. Room booking details
-CREATE OR REPLACE VIEW room_booking_details AS
+CREATE VIEW available_rooms AS
 SELECT
-    r.room_id,
+    room_number,
+    room_type,
+    price
+FROM rooms
+WHERE status = 'Available';
+
+CREATE VIEW booking_details AS
+SELECT
+    b.booking_id,
+    c.customer_name,
     r.room_number,
     r.room_type,
-    r.price,
-    r.status AS room_status,
-    b.booking_id,
     b.check_in,
     b.check_out,
     b.total_amount,
-    b.status AS booking_status
-FROM rooms r
-LEFT JOIN bookings b
-ON r.room_id = b.room_id;
+    b.status
+FROM bookings b
+JOIN customers c
+ON b.customer_id = c.customer_id
+JOIN rooms r
+ON b.room_id = r.room_id;
